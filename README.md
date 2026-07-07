@@ -75,12 +75,23 @@ unrelated function as similar as the true duplicate.
 
 ## Limitations
 
-O(n²) similarity (fine for small/medium repos); the default model is
-general-purpose, not code-tuned; per-language only (no cross-language clones).
+O(n²) similarity (fine for small/medium repos); the default code model is a
+~160MB download, so the first full scan is slow while every scan after it is
+incremental; per-language only (no cross-language clones).
 
 ## Agents
 
-Ships with `SKILL.md` — a companion skill that teaches coding agents when and how
-to use the tool. Point your agent at it (or drop the commands into `CLAUDE.md`).
+Ships with a companion skill at `skills/dupscan/`, which teaches coding agents
+when to run the tool and how to read its output, and you can install it either
+way:
+
+- Plugin: from a marketplace that lists this repo, run
+  `/plugin install dupscan@<marketplace>`, which brings in the skill and
+  pre-approves `npx dupscan`.
+- Manual: copy `skills/dupscan/` into your project's `.claude/skills/` or your
+  personal `~/.claude/skills/`.
+
+The skill invokes `npx dupscan`, so the CLI is fetched from npm on first use and
+there is nothing to vendor.
 
 MIT licensed.

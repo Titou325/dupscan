@@ -1,0 +1,8 @@
+{
+  "name": "dupscan",
+  "description": "Semantic code-duplication and anti-pattern review, backed by the dupscan CLI (npx dupscan).",
+  "version": "0.1.0",
+  "author": { "name": "Titouan Launay" },
+  "homepage": "https://github.com/Titou325/dupscan",
+  "license": "MIT"
+}
