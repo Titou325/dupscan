@@ -155,10 +155,11 @@ export function changedFiles(root) {
         .split('\n').filter(Boolean);
     } catch { return []; }
   };
-  return new Set([
+  const all = [
     ...git(['diff', '--name-only', '--relative', 'HEAD']), // tracked, staged + unstaged
     ...git(['ls-files', '--others', '--exclude-standard']), // untracked
-  ]);
+  ];
+  return new Set(all.filter((f) => SUPPORTED.includes(extname(f))));
 }
 
 // ---------------------------------------------------------------------------
@@ -358,8 +359,10 @@ async function cmdScan(root, f) {
   await embed.close?.();
   let clusters = findClusters(regions, vectors, threshold);
   let outliers = findOutliers(regions, { minLines: 60, minNesting: 5 });
+  let noChanges = false;
   if (f.changed) { // keep only findings that touch the working diff
     const set = changedFiles(root);
+    noChanges = set.size === 0;
     clusters = clusters.filter((c) => c.members.some((m) => set.has(m.file)));
     outliers = outliers.filter((o) => set.has(o.file));
   }
@@ -367,7 +370,8 @@ async function cmdScan(root, f) {
   outliers = outliers.slice(0, limit);
 
   if (f.json) { console.log(JSON.stringify({ clusters, outliers }, null, 2)); }
-  else if (!clusters.length && !outliers.length) { console.error(`clean — ${regions.length} regions, no duplicates`); }
+  else if (noChanges) { console.error('no changed files in the working tree'); }
+  else if (!clusters.length && !outliers.length) { console.error(`clean, ${regions.length} regions, no duplicates`); }
   else {
     if (clusters.length) console.log(formatClusters(clusters, { show: Boolean(f.show) }));
     for (const o of outliers) console.log(`outlier  ${loc(o)}  (${o.lines} lines, nesting ${o.nesting})  ${o.name}`);

@@ -171,12 +171,14 @@ test('changedFiles reports modified + untracked, not unchanged (relative to root
   await writeFile(join(dir, 'b.ts'), 'y');
   git('add', '.');
   git('commit', '-q', '-m', 'init');
-  await writeFile(join(dir, 'a.ts'), 'x2'); // modified tracked
-  await writeFile(join(dir, 'c.ts'), 'z');  // untracked
+  await writeFile(join(dir, 'a.ts'), 'x2');    // modified tracked
+  await writeFile(join(dir, 'c.ts'), 'z');     // untracked code
+  await writeFile(join(dir, 'notes.md'), 'n'); // untracked non-code
   const set = changedFiles(dir);
   assert.ok(set.has('a.ts'));
   assert.ok(set.has('c.ts'));
-  assert.ok(!set.has('b.ts'));
+  assert.ok(!set.has('b.ts'));       // unchanged
+  assert.ok(!set.has('notes.md'));   // non-code excluded
   await rm(dir, { recursive: true, force: true });
 });
 
