@@ -1,17 +1,16 @@
 # dupscan
 
-A tiny CLI that finds **semantic** code duplication and anti-pattern signals by
-embedding tree-sitter regions (functions/methods/classes) with a local model and
-comparing them. It reports **signal, not verdict** — "these two regions are 0.94
-similar", "this one is a 180-line outlier" — and leaves the judgment to you (or
-your coding agent). One file, no build step, no server.
+A CLI that finds semantic code duplication and anti-pattern signals. It embeds
+tree-sitter regions (functions, methods, classes) with a local model and
+compares them, then reports similar regions and size or nesting outliers. It
+reports signals, not verdicts, so you or a coding agent decide what to do with
+them. It is a single file with no build step and no server.
 
 ## Why embeddings, not syntax matching
 
-Structural/token hashing is brittle: it misses code that does the same thing
-written differently. Semantic embeddings catch near-duplicates across stylistic
-variation. Tree-sitter's only job here is to chop code into meaningful regions;
-the embeddings do the comparing.
+Token or AST hashing misses code that does the same thing written differently.
+Embeddings catch near-duplicates across stylistic variation, and tree-sitter is
+used only to split code into regions, while the embeddings do the comparing.
 
 ## Install
 
@@ -23,38 +22,39 @@ npm install --save-dev dupscan
 
 ```bash
 npx dupscan scan . --changed              # after editing: only findings touching your diff
-npx dupscan scan src                      # whole-tree: duplicate clusters + outliers
+npx dupscan scan src                      # whole tree: duplicate clusters and outliers
 npx dupscan scan src --threshold 0.9 --show   # stricter, with snippets
 npx dupscan similar src/util.ts:42        # what else looks like this region?
 printf '%s' "a debounce helper" | npx dupscan similar -   # query by intent before writing
 npx dupscan watch src                     # keep the index warm in the background
 ```
 
-`--changed` reindexes the whole tree (cheap once warm) but reports only clusters
-and outliers involving files you've modified, staged, or added — the natural
-post-edit check. Outside a git repo it reports nothing.
+`--changed` reindexes the whole tree, which is cheap once warm, but reports only
+clusters and outliers involving files you have modified, staged, or added.
+Outside a git repo it reports nothing.
 
-`scan` exits **1** when it finds duplicates, **0** when clean.
+`scan` exits 1 when it finds duplicates and 0 when clean.
 
-First run downloads the embedding model (code-tuned `jina-embeddings-v2-base-code`,
-~160MB q8, cached once). The first full scan of a repo is the slow part (all
-regions embedded); every scan after that is incremental and near-instant.
-Languages: JavaScript/TypeScript and Python.
+The first run downloads the embedding model (`jina-embeddings-v2-base-code`,
+about 160MB q8, cached once). The first full scan of a repo is the slow part
+since every region is embedded, and every scan after that is incremental and
+fast. Languages are JavaScript, TypeScript, and Python.
 
-**Want small & fast over accuracy?** `--model Xenova/all-MiniLM-L6-v2` drops to a
-~25MB general-purpose model that scans ~4× faster but misses semantically-equal-
-but-differently-written code (it's not code-tuned). The default is chosen for
-accuracy — see the table below.
+For a smaller and faster but less accurate run, pass
+`--model Xenova/all-MiniLM-L6-v2`, a roughly 25MB general-purpose model that
+scans about 4 times faster but misses code that is equivalent yet written
+differently, since it is not code-tuned. The default is chosen for accuracy, as
+the table below explains.
 
-## How staleness works (the one clever bit)
+## How staleness works
 
 Each region's identity is a hash of its normalized text, and embeddings are
-cached by that hash — never by file:line. So a function that moves but doesn't
-change costs nothing to re-scan; only genuinely new/changed regions are
-re-embedded. Touching a file without editing it re-embeds nothing (the content
-hash wins over mtime); renaming a file with identical content reuses every
-vector; deleting a file garbage-collects its vectors. The cache lives in
-`.dupcache/` at the scanned path — **gitignore it**.
+cached by that hash rather than by file and line, so a function that moves but
+does not change costs nothing to re-scan and only new or changed regions are
+re-embedded. Touching a file without editing it re-embeds nothing, because the
+content hash takes precedence over mtime; renaming a file with identical content
+reuses every vector; and deleting a file drops its vectors. The cache lives in
+`.dupcache/` at the scanned path, so add it to `.gitignore`.
 
 ## Config
 
@@ -67,27 +67,27 @@ vector; deleting a file garbage-collects its vectors. The cache lives in
 | `--show`              | off                        | include a snippet per cluster  |
 | `--json`              | off                        | machine-readable output        |
 
-Why the code model? On a loop-vs-`reduce` semantic-duplicate probe, the default
-scored the pair 0.80 and an unrelated function 0.13 (separation 0.67);
-all-MiniLM scored the same real duplicate just 0.61 — it would be *missed* at any
-usable threshold. General text models (nomic, bge) were worse still, rating the
+On a loop-versus-`reduce` semantic-duplicate probe the default scored the pair
+0.80 and an unrelated function 0.13, a separation of 0.67, while all-MiniLM
+scored the same real duplicate 0.61, low enough to be missed at any usable
+threshold. General text models such as nomic and bge did worse still, rating the
 unrelated function as similar as the true duplicate.
 
 ## Limitations
 
-O(n²) similarity (fine for small/medium repos), and the default code model is a
-~160MB download, so the first full scan is slow while every scan after it is
-incremental. Similarity is cross-language: equivalent logic in JavaScript and
-Python scores ~0.95, so clones are caught across languages, not only within one.
+Similarity is O(n²), which is fine for small and medium repos. The default code
+model is about a 160MB download, so the first full scan is slow while every scan
+after it is incremental. Similarity is cross-language, so equivalent logic in
+JavaScript and Python scores about 0.95 and clones are caught across languages,
+not only within one.
 
 ## Agents
 
-Ships with a companion skill at `skills/dupscan/`, which teaches coding agents
-when to run the tool and how to read its output, and you can install it either
-way:
+The repo ships a companion skill at `skills/dupscan/` that tells coding agents
+when to run the tool and how to read its output. Install it either way:
 
-- Plugin: add this repo as a marketplace and install, which brings in the skill
-  and pre-approves `npx dupscan`:
+- Plugin: add this repo as a marketplace and install it, which brings in the
+  skill and pre-approves `npx dupscan`:
 
   ```
   /plugin marketplace add Titou325/dupscan
