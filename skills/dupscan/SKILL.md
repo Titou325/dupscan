@@ -37,4 +37,4 @@ The CLI ships on npm, so invoke it with `npx dupscan`, which fetches and caches 
 - First run downloads a code-tuned embedding model (~160MB, cached once), so the first full scan of a repo is slow while every scan after it is incremental and fast. For a fast, small (~25MB) but less accurate run, pass `--model Xenova/all-MiniLM-L6-v2`.
 - Languages are JavaScript, TypeScript, and Python, and other files are ignored.
 - The index lives in `.dupcache/` at the scanned path, so add it to `.gitignore`.
-- Similarity is per-language, so it will not match a JavaScript clone against a Python one.
+- Similarity is cross-language with the default code model, so a JavaScript function and the Python function that implements the same logic score high (measured around 0.95 on a sum helper), which means duplicated logic gets flagged across languages, not only within one.

@@ -75,9 +75,10 @@ unrelated function as similar as the true duplicate.
 
 ## Limitations
 
-O(n²) similarity (fine for small/medium repos); the default code model is a
+O(n²) similarity (fine for small/medium repos), and the default code model is a
 ~160MB download, so the first full scan is slow while every scan after it is
-incremental; per-language only (no cross-language clones).
+incremental. Similarity is cross-language: equivalent logic in JavaScript and
+Python scores ~0.95, so clones are caught across languages, not only within one.
 
 ## Agents
 
