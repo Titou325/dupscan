@@ -13,26 +13,32 @@ recommending a change — a high score is a lead, not a conclusion.
 
 ## Commands
 
-- `dupscan scan <path> [--threshold 0.85] [--limit 50] [--show] [--json]`
-  Near-duplicate clusters + size/nesting outliers. Exit code **1** when
-  duplicates are found, **0** when clean — branch on it without parsing output.
-- `dupscan similar <file:line | ->  [--limit 10] [--json]`
-  Nearest-neighbor regions. Use `-` to pipe a snippet on stdin **before writing
-  new code**, to check whether it already exists.
+- `dupscan scan <path> --changed [--threshold 0.8] [--show] [--json]`
+  Scan, but report only findings that touch your working diff (git
+  modified/staged/untracked). The main workflow: run it after writing or
+  editing code.
+- `dupscan scan <path> [--threshold 0.8] [--limit 50] [--show] [--json]`
+  Whole-tree scan: near-duplicate clusters + size/nesting outliers. Exit code 1
+  when duplicates are found, 0 when clean — branch on it without parsing output.
+- `dupscan similar <file:line | -> [--limit 10] [--json]`
+  Nearest-neighbor regions for an existing region, or for a natural-language
+  description piped on stdin ("retry with exponential backoff").
 - `dupscan watch <path>`
-  Keeps the on-disk index warm as files change, so later `scan`/`similar` calls
-  are near-instant.
+  Keeps the on-disk index warm as files change, so later scans are near-instant.
 
 ## When to use it
 
-- **Before implementing** a helper/util, check for an existing one:
-  `printf '%s' "$SNIPPET" | dupscan similar -`.
-  If a region comes back above ~0.9, reuse it instead of duplicating.
-- **During review**: `dupscan scan src`. For each cluster, open the members and
-  judge: true duplication (extract a shared function) or coincidental structural
-  similarity (leave it). Report the former with `file:line` references.
-- **Outliers** are candidates, not verdicts. A 200-line function may be fine;
-  judge cohesion before flagging it as a god-function.
+- After writing or editing code, run `dupscan scan <repo> --changed`. For each
+  reported cluster, open the members and judge: real duplication (extract a
+  shared function) or coincidental similarity (leave it). Report the former with
+  `file:line` references.
+- Reviewing a whole codebase: `dupscan scan src` without `--changed`.
+- Before writing something you can describe, query intent first:
+  `printf '%s' "a debounce helper" | dupscan similar -`. Reuse a strong match
+  instead of duplicating. Skip this when writing the code is faster than
+  describing it.
+- Outliers are candidates, not verdicts. A 200-line function may be fine; judge
+  cohesion before flagging it as a god-function.
 
 ## Reading output
 

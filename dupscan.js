@@ -146,6 +146,21 @@ export async function discover(root) {
   return files.filter((f) => SUPPORTED.includes(extname(f)));
 }
 
+// Files touched in the working tree (modified/staged/untracked), relative to
+// root. Empty outside a git repo. Powers `scan --changed`.
+export function changedFiles(root) {
+  const git = (args) => {
+    try {
+      return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+        .split('\n').filter(Boolean);
+    } catch { return []; }
+  };
+  return new Set([
+    ...git(['diff', '--name-only', '--relative', 'HEAD']), // tracked, staged + unstaged
+    ...git(['ls-files', '--others', '--exclude-standard']), // untracked
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // Persistent index + staleness (the one advanced feature)
 // Region identity = sha256 of normalized text. Vectors are cached by that hash,
@@ -341,8 +356,15 @@ async function cmdScan(root, f) {
   const embed = await makeEmbedder(modelId, String(f.dtype || DEFAULT_DTYPE));
   const { regions, vectors } = await reindex(root, { modelId, indexPath: indexPathFor(root), embed });
   await embed.close?.();
-  const clusters = findClusters(regions, vectors, threshold).slice(0, limit);
-  const outliers = findOutliers(regions, { minLines: 60, minNesting: 5 }).slice(0, limit);
+  let clusters = findClusters(regions, vectors, threshold);
+  let outliers = findOutliers(regions, { minLines: 60, minNesting: 5 });
+  if (f.changed) { // keep only findings that touch the working diff
+    const set = changedFiles(root);
+    clusters = clusters.filter((c) => c.members.some((m) => set.has(m.file)));
+    outliers = outliers.filter((o) => set.has(o.file));
+  }
+  clusters = clusters.slice(0, limit);
+  outliers = outliers.slice(0, limit);
 
   if (f.json) { console.log(JSON.stringify({ clusters, outliers }, null, 2)); }
   else if (!clusters.length && !outliers.length) { console.error(`clean — ${regions.length} regions, no duplicates`); }
@@ -405,7 +427,8 @@ export async function run(argv) {
     args: argv, allowPositionals: true,
     options: {
       threshold: { type: 'string' }, limit: { type: 'string' }, model: { type: 'string' },
-      dtype: { type: 'string' }, show: { type: 'boolean' }, json: { type: 'boolean' },
+      dtype: { type: 'string' }, changed: { type: 'boolean' },
+      show: { type: 'boolean' }, json: { type: 'boolean' },
     },
   });
   const [cmd, arg] = positionals;
@@ -416,7 +439,7 @@ export async function run(argv) {
       if (!arg) { console.error('usage: dupscan similar <file:line | ->'); return 2; }
       return cmdSimilar('.', arg, values);
     default:
-      console.error('usage: dupscan <scan|similar|watch> [path|target] [--threshold --limit --model --show --json]');
+      console.error('usage: dupscan <scan|similar|watch> [path|target] [--changed --threshold --limit --model --show --json]');
       return 2;
   }
 }

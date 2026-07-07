@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, utimes, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  cosine, findClusters, findOutliers, extractFile, discover, reindex, formatClusters, SUPPORTED,
+  cosine, findClusters, findOutliers, extractFile, discover, reindex, formatClusters, changedFiles, SUPPORTED,
 } from '../dupscan.js';
 
 // ----- similarity -----------------------------------------------------------
@@ -157,6 +158,25 @@ test('changing modelId forces a full re-embed', async () => {
   const c = counter();
   await reindex(dir, { modelId: 'B', indexPath: idx, embed: c.embed });
   assert.equal(c.calls(), 1);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('changedFiles reports modified + untracked, not unchanged (relative to root)', async () => {
+  const dir = await tmp();
+  const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore' });
+  git('init', '-q');
+  git('config', 'user.email', 't@t');
+  git('config', 'user.name', 't');
+  await writeFile(join(dir, 'a.ts'), 'x');
+  await writeFile(join(dir, 'b.ts'), 'y');
+  git('add', '.');
+  git('commit', '-q', '-m', 'init');
+  await writeFile(join(dir, 'a.ts'), 'x2'); // modified tracked
+  await writeFile(join(dir, 'c.ts'), 'z');  // untracked
+  const set = changedFiles(dir);
+  assert.ok(set.has('a.ts'));
+  assert.ok(set.has('c.ts'));
+  assert.ok(!set.has('b.ts'));
   await rm(dir, { recursive: true, force: true });
 });
 

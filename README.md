@@ -22,12 +22,17 @@ npm install --save-dev dupscan
 ## Use
 
 ```bash
-npx dupscan scan src                      # duplicate clusters + outliers
+npx dupscan scan . --changed              # after editing: only findings touching your diff
+npx dupscan scan src                      # whole-tree: duplicate clusters + outliers
 npx dupscan scan src --threshold 0.9 --show   # stricter, with snippets
 npx dupscan similar src/util.ts:42        # what else looks like this region?
-printf '%s' "$(pbpaste)" | npx dupscan similar -   # does this snippet exist yet?
+printf '%s' "a debounce helper" | npx dupscan similar -   # query by intent before writing
 npx dupscan watch src                     # keep the index warm in the background
 ```
+
+`--changed` reindexes the whole tree (cheap once warm) but reports only clusters
+and outliers involving files you've modified, staged, or added — the natural
+post-edit check. Outside a git repo it reports nothing.
 
 `scan` exits **1** when it finds duplicates, **0** when clean.
 
