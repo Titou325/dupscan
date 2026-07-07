@@ -1,0 +1,20 @@
+{
+  "name": "dupscan",
+  "version": "0.1.0",
+  "description": "Find semantic code duplication and anti-pattern signals via tree-sitter regions + local embeddings.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "dupscan": "dupscan.js" },
+  "files": ["dupscan.js", "SKILL.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "dupscan": "node dupscan.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
+    "chokidar": "^4.0.0",
+    "tree-sitter-wasms": "^0.1.11",
+    "web-tree-sitter": "^0.25.0"
+  }
+}

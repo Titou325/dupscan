@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+.dupcache/
+.cache/
+.DS_Store
+.models/
