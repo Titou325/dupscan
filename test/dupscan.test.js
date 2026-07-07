@@ -65,6 +65,16 @@ test('extractFile finds functions, methods, classes in TS', async () => {
   assert.equal(byName.get('multiply').kind, 'method');
 });
 
+test('extractFile captures name-bound arrow and function-expression regions', async () => {
+  const byName = new Map((await extractFile('test/fixtures', 'sample.ts')).map((x) => [x.name, x]));
+  assert.equal(byName.get('iso').kind, 'function'); // const iso = () => ...
+  assert.equal(byName.get('scale').kind, 'function'); // const scale = function () { ... }
+  assert.equal(byName.get('onClick').kind, 'function'); // { onClick: (e) => ... }
+  // Region text is the function value, not the binding name, so identical
+  // bodies under different names still match.
+  assert.equal(byName.get('iso').text, '() => new Date().toISOString()');
+});
+
 test('extractFile handles Python methods vs functions', async () => {
   const byName = new Map((await extractFile('test/fixtures', 'sample.py')).map((x) => [x.name, x]));
   assert.equal(byName.get('greet').kind, 'function');

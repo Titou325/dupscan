@@ -85,6 +85,35 @@ function nameOf(node) {
   return f ? f.text : null;
 }
 
+const FN_EXPR = new Set(['arrow_function', 'function_expression']);
+
+// A function value bound to a name is a real region even though tree-sitter
+// types it as an expression, not a declaration: `const foo = () => {}`,
+// class field `foo = () => {}`, object property `{ foo: () => {} }`.
+// Returns the name plus the function node to measure, or null.
+function boundFunction(node) {
+  if (node.type === 'variable_declarator' || node.type === 'assignment_expression') {
+    const value = node.childForFieldName('value') ?? node.childForFieldName('right');
+    const name = node.childForFieldName('name') ?? node.childForFieldName('left');
+    if (value && FN_EXPR.has(value.type) && name?.type === 'identifier') {
+      return { name: name.text, fn: value };
+    }
+  }
+  if (node.type === 'public_field_definition' || node.type === 'field_definition') {
+    const value = node.childForFieldName('value');
+    const name = node.childForFieldName('name');
+    if (value && FN_EXPR.has(value.type) && name) return { name: name.text, fn: value };
+  }
+  if (node.type === 'pair') {
+    const value = node.childForFieldName('value');
+    const key = node.childForFieldName('key');
+    if (value && FN_EXPR.has(value.type) && key) {
+      return { name: key.text.replace(/['"]/g, ''), fn: value };
+    }
+  }
+  return null;
+}
+
 export async function extractFile(root, rel) {
   const ext = extname(rel);
   if (!GRAMMAR[ext]) return [];
@@ -97,20 +126,27 @@ export async function extractFile(root, rel) {
   const regions = [];
   const visit = (node, insideClass) => {
     let kind = KIND[node.type];
-    if (kind === 'function' && insideClass) kind = 'method'; // python method
-    const name = kind ? nameOf(node) : null;
+    let name = kind ? nameOf(node) : null;
+    let target = node;
+
+    if (!kind) {
+      const bound = boundFunction(node);
+      if (bound) { kind = 'function'; name = bound.name; target = bound.fn; }
+    }
+    if (kind === 'function' && insideClass) kind = 'method'; // python method / class field
+
     if (kind && name) {
-      const text = normalize(node.text);
+      const text = normalize(target.text);
       regions.push({
         file: rel,
-        startLine: node.startPosition.row + 1,
-        endLine: node.endPosition.row + 1,
+        startLine: target.startPosition.row + 1,
+        endLine: target.endPosition.row + 1,
         kind,
         name,
         text,
         hash: createHash('sha256').update(text).digest('hex'),
-        lines: node.endPosition.row - node.startPosition.row + 1,
-        nesting: nestingDepth(node),
+        lines: target.endPosition.row - target.startPosition.row + 1,
+        nesting: nestingDepth(target),
       });
     }
     const nowInClass = insideClass || kind === 'class';

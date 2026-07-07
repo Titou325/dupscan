@@ -13,3 +13,13 @@ class Calculator {
     return acc;
   }
 }
+
+export const iso = () => new Date().toISOString();
+
+const scale = function (x: number): number {
+  return x * 2;
+};
+
+const handlers = {
+  onClick: (e: number) => e + 1,
+};
