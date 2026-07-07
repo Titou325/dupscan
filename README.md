@@ -86,9 +86,13 @@ Ships with a companion skill at `skills/dupscan/`, which teaches coding agents
 when to run the tool and how to read its output, and you can install it either
 way:
 
-- Plugin: from a marketplace that lists this repo, run
-  `/plugin install dupscan@<marketplace>`, which brings in the skill and
-  pre-approves `npx dupscan`.
+- Plugin: add this repo as a marketplace and install, which brings in the skill
+  and pre-approves `npx dupscan`:
+
+  ```
+  /plugin marketplace add Titou325/dupscan
+  /plugin install dupscan@titou325
+  ```
 - Manual: copy `skills/dupscan/` into your project's `.claude/skills/` or your
   personal `~/.claude/skills/`.
 
